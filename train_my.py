@@ -83,10 +83,13 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 optimizer.step()
                 print('[%.2fs (%d / %d) angle_loss:%.4f distance_loss:%.4f]' % (time.time()-start, epoch, EPOCH_SET , angle_loss, distance_loss))
                 '''
-
+                print(img)
+                cv2.imshow('image',img)
                 out = model(img)
-                total_loss = loss_func(out,label)
+                
                 optimizer.zero_grad()
+                total_loss = loss_func(out,label)
+                total_loss += total_loss.data[0] #test
                 total_loss.backward()
                 optimizer.step()
                 
@@ -122,13 +125,13 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
     plt.ylabel('LOSS')
     plt.savefig('./Loss_graph/train/train_loss.png')
     plt.cla()
-    
+      
 def main():
     
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print('GPU State:', device)
 
-    torch.set_printoptions(profile="default")#打印tensor的精度，https://blog.csdn.net/Fluid_ray/article/details/109556867
+    torch.set_printoptions(profile="defult")#打印tensor的精度，https://blog.csdn.net/Fluid_ray/article/details/109556867
     #####PATH#####
     train_root = './detect_data_separate/trains'
     valid_root = './detect_data_separate/valid'
@@ -141,16 +144,16 @@ def main():
                                                         torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
                                                         ]) 
     #####train dataloder#####    
-    batch_size = 32
+    batch_size = 1
     train_data=MyDataset(root=train_root, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
     #####test dataloder##### 
     valid_data=MyDataset(root=valid_root, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=8)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size)
    
     #####model setting#####
     #model = Net().to(device)   #自製model
-    model= models.resnet34(pretrained=True)
+    model= models.resnet152(pretrained=True)
     #model= models.vgg16(pretrained=True) #會梯度爆炸
     #* 修改全連線層的輸出 *#
     
