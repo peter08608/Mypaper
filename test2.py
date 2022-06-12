@@ -15,11 +15,11 @@ def detect(root,out):
         dis = abs(img_detect[0][1]*200)
         print(angle,':',dis)
 
-        img_orige = cv2.imread(path)
-        y, x, channel = img_orige.shape
+        img_origin = cv2.imread(path)
+        y, x, channel = img_origin.shape
 
         img = np.ones((y,x+200,3), np.uint8)*255
-        img[0:y, 0:x] = img_orige
+        img[0:y, 0:x] = img_origin
 
         img = cv2.line(img, (x,50), (x+200,50), (0,0,255), 2)
         img = cv2.line(img, (x+100,50), ((x+100)+round(math.cos(math.radians(angle))*dis),50+round(math.sin(math.radians(angle))*dis)), (0,0,255), 2)

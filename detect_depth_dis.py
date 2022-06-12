@@ -20,7 +20,7 @@ def detect_depth_dis(path):
     model = model.to(device)
     #print(model)
     
-    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((600,600)),
+    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((640,360)),
                                                         torchvision.transforms.ToTensor(),
                                                         torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
                                                         ]) 

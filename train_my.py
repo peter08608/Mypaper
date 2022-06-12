@@ -20,7 +20,7 @@ import time
 from CNN_model import *
 from Dataset import *
 best_loss = 0.0
-def valid(model, device, epoch, loss_func, valid_loader, batch_size):
+def valid(model, device, epoch, loss_func, valid_loader, batch_size, save_path):
     #####valid setting#####
     global best_loss
     model.eval()
@@ -40,7 +40,7 @@ def valid(model, device, epoch, loss_func, valid_loader, batch_size):
     plt.title('Valid : BATCH_SIZE = ' + str(batch_size) + 'loss mean = ' + str(draw_loss))
     plt.xlabel('per '+str(batch_size))
     plt.ylabel('LOSS')
-    plt.savefig('./Loss_graph/valid/EPOCH_'+str(epoch).zfill(6)+'.png')
+    plt.savefig(os.path.join(save_path,'valid/EPOCH_'+str(epoch).zfill(6)+'.png'))
     plt.cla()
     
     print('\n*Valid* : [%.2fs EPOCH:%d , total_loss:%.8f]' % (time.time()-start, epoch, draw_loss))
@@ -48,12 +48,12 @@ def valid(model, device, epoch, loss_func, valid_loader, batch_size):
     #####save last model#####
     if epoch == 0:
         best_loss = draw_loss
-        torch.save(model,'./Loss_graph/train/save/best.pt')
+        torch.save(model,os.path.join(save_path,'train/save/best.pt'))
     elif abs(best_loss) > abs(draw_loss) :
         best_loss = draw_loss
-        torch.save(model,'./Loss_graph/train/save/best.pt')
+        torch.save(model,os.path.join(save_path,'train/save/best.pt'))
 
-def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size):
+def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size, save_path):
     #####train setting#####
     draw_loss = []
     for epoch in range(EPOCH_SET):
@@ -83,13 +83,12 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 optimizer.step()
                 print('[%.2fs (%d / %d) angle_loss:%.4f distance_loss:%.4f]' % (time.time()-start, epoch, EPOCH_SET , angle_loss, distance_loss))
                 '''
-                print(img)
-                cv2.imshow('image',img)
+                
                 out = model(img)
                 
                 optimizer.zero_grad()
                 total_loss = loss_func(out,label)
-                total_loss += total_loss.data[0] #test
+                total_loss += total_loss.item() #test
                 total_loss.backward()
                 optimizer.step()
                 
@@ -112,9 +111,9 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 '''
             tqdm._instances.clear()
             #####save last model#####
-            torch.save(model,'./Loss_graph/train/save/last.pt')
+            torch.save(model,os.path.join(save_path,'train/save/last.pt'))
             #####valid#####
-            valid(model, device, epoch, loss_func, train_loader, batch_size)
+            valid(model, device, epoch, loss_func, train_loader, batch_size, save_path)
             #####loss graph#####
             loss_graph = np.mean(loss_graph)
             draw_loss.append(loss_graph)
@@ -123,7 +122,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
     plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
     plt.xlabel('EPOCH')
     plt.ylabel('LOSS')
-    plt.savefig('./Loss_graph/train/train_loss.png')
+    plt.savefig(os.path.join(save_path,'train/train_loss.png'))
     plt.cla()
       
 def main():
@@ -139,12 +138,12 @@ def main():
     label_folder = 'labels'
 
     #####Dataset setting#####
-    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((600,600)),
+    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((640,360)),
                                                         torchvision.transforms.ToTensor(),
-                                                        torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
+                                                        #torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
                                                         ]) 
     #####train dataloder#####    
-    batch_size = 1
+    batch_size = 8
     train_data=MyDataset(root=train_root, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
     #####test dataloder##### 
@@ -153,7 +152,7 @@ def main():
    
     #####model setting#####
     #model = Net().to(device)   #自製model
-    model= models.resnet152(pretrained=True)
+    model= models.resnet50(pretrained=False)
     #model= models.vgg16(pretrained=True) #會梯度爆炸
     #* 修改全連線層的輸出 *#
     
@@ -169,7 +168,7 @@ def main():
     print(model)
     
     #
-    LR = 0.001
+    LR = 0.0001
     EPOCH_SET = 1000
 
     optimizer = torch.optim.SGD(model.parameters(),lr=LR)
@@ -177,7 +176,21 @@ def main():
     #loss_func = nn.BCELoss()
     
     #####start traing#####
-    train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size)
+    save_path = mkdir()
+    train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size, save_path)
+
+def mkdir():
+    first = 1
+    while True:
+        path = './runs/train/exp'+str(first)
+        if not os.path.isdir(path):
+            os.mkdir(path)
+            os.makedirs(os.path.join(path,'train','save'))
+            os.mkdir(os.path.join(path,'valid'))
+            break
+        first += 1
+    return path
+            
     
 if __name__ == "__main__":
     main()
