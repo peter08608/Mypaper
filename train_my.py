@@ -20,15 +20,19 @@ import time
 from CNN_model import *
 from Dataset import *
 best_loss = 0.0
-def valid(model, device, epoch, loss_func, valid_loader, batch_size, save_path):
+best_EPOCH = 0
+valid_loss = []
+def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, save_path):
     #####valid setting#####
     global best_loss
+    global best_EPOCH
+    global valid_loss
     model.eval()
     draw_loss = []
     loss_graph = 0.0
+    start = time.time()
     with torch.no_grad():
         for step, (img, label) in enumerate(valid_loader):
-            start = time.time()
             img, label = img.to(device), label.to(device)
             out = model(img)
             total_loss = loss_func(out,label)
@@ -37,30 +41,35 @@ def valid(model, device, epoch, loss_func, valid_loader, batch_size, save_path):
     x = range(0,len(draw_loss))
     plt.plot(x, draw_loss, '.-')
     draw_loss = np.mean(draw_loss)
+    valid_loss.append(draw_loss)
     plt.title('Valid : BATCH_SIZE = ' + str(batch_size) + 'loss mean = ' + str(draw_loss))
     plt.xlabel('per '+str(batch_size))
     plt.ylabel('LOSS')
-    plt.savefig(os.path.join(save_path,'valid/EPOCH_'+str(epoch).zfill(6)+'.png'))
+    plt.savefig(os.path.join(save_path,'valid/each_EOPCH/EPOCH_'+str(epoch).zfill(6)+'.png'))
     plt.cla()
     
-    print('\n*Valid* : [%.2fs EPOCH:%d , total_loss:%.8f]' % (time.time()-start, epoch, draw_loss))
+    print('Valid_EPOCH : (%d / %d):[mean_loss:%.8f , %.2fs]' % (epoch, EPOCH_SET, draw_loss, time.time()-start))
     
-    #####save last model#####
+    #####save best model#####
     if epoch == 0:
+        best_EPOCH = epoch
         best_loss = draw_loss
         torch.save(model,os.path.join(save_path,'train/save/best.pt'))
     elif abs(best_loss) > abs(draw_loss) :
+        best_EPOCH = epoch
         best_loss = draw_loss
         torch.save(model,os.path.join(save_path,'train/save/best.pt'))
-
+    print('###current BEST EPOCH:'+str(best_EPOCH)+'###\n')
 def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size, save_path):
     #####train setting#####
     draw_loss = []
+    global valid_loss
     for epoch in range(EPOCH_SET):
         model.train()
-        loss_graph = []
         print_mse = ''
+        total_loss = 0
         with tqdm(total=len(train_loader), ncols=120, ascii=True) as t:
+            
             for step, (img, label) in enumerate(train_loader):
                 '''
                 #####tensorboard#####
@@ -76,7 +85,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                                                                                 #按照提示需要統一維度，可用squeeze將預測維度從（64，1）壓縮為（64）
 
                 angle_loss = loss_func(angle_out.float(), angle.float())        #不加float()會報錯
-                distance_loss = loss_func(dis_out.float(), distance.float())    #RuntimeError: Found dtype Double but expected Float”
+                distance_loss = loss_func(diss_out.float(), distance.float())    #RuntimeError: Found dtype Double but expected Float”
                 optimizer.zero_grad()
                 angle_loss.backward(retain_graph=True)
                 distance_loss.backward()
@@ -87,18 +96,16 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 out = model(img)
                 
                 optimizer.zero_grad()
-                total_loss = loss_func(out,label)
-                total_loss += total_loss.item() #test
-                total_loss.backward()
+                loss = loss_func(out,label)
+                total_loss += loss.item() #test 此處要修正
+                loss.backward()
                 optimizer.step()
                 
                 #####progress bar#####
-                t.set_description('Train_EPOCH : (%d / %d)' % (epoch, EPOCH_SET-1))
-                t.set_postfix({'loss':'{:.8f}'.format(total_loss.item()),'time':'{:.4f}'.format(time.time()-start)})
+                t.set_description('Training : (%d / %d)' % (epoch, EPOCH_SET-1))
+                t.set_postfix({'loss':'{:.8f}'.format(loss.item()),'time':'{:.4f}'.format(time.time()-start)})
                 t.update()
                 
-                #####loss graph#####
-                loss_graph.append(total_loss.item())
                 
                 '''
                 #####tensorboard#####
@@ -109,21 +116,33 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 writer.add_scalar('Loss/distance_loss', distance_loss, step)
                 writer.close()
                 '''
-            tqdm._instances.clear()
+            
+            #tqdm._instances.clear()
+            t.close()
+            mean_loss = total_loss / len(train_loader)
+            print('Train_EPOCH : (%d / %d):[mean_loss:%.8f]' % (epoch, EPOCH_SET, mean_loss))
             #####save last model#####
             torch.save(model,os.path.join(save_path,'train/save/last.pt'))
             #####valid#####
-            valid(model, device, epoch, loss_func, train_loader, batch_size, save_path)
+            valid(model, device, epoch, EPOCH_SET, loss_func, train_loader, batch_size, save_path)
             #####loss graph#####
-            loss_graph = np.mean(loss_graph)
-            draw_loss.append(loss_graph)
-    x = range(0,len(draw_loss))
-    plt.plot(x, draw_loss, '.-')
-    plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
-    plt.xlabel('EPOCH')
-    plt.ylabel('LOSS')
-    plt.savefig(os.path.join(save_path,'train/train_loss.png'))
-    plt.cla()
+            draw_loss.append(mean_loss)
+        #draw train loss
+        x = range(0,len(draw_loss))
+        plt.plot(x, draw_loss, '.-')
+        plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
+        plt.xlabel('EPOCH')
+        plt.ylabel('LOSS')
+        plt.savefig(os.path.join(save_path,'train/train_loss.png'))
+        plt.cla()
+        #draw valid loss
+        x = range(0,len(valid_loss))
+        plt.plot(x, valid_loss, '.-')
+        plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
+        plt.xlabel('EPOCH')
+        plt.ylabel('LOSS')
+        plt.savefig(os.path.join(save_path,'valid/valid_loss.png'))
+        plt.cla()
       
 def main():
     
@@ -132,8 +151,8 @@ def main():
 
     torch.set_printoptions(profile="defult")#打印tensor的精度，https://blog.csdn.net/Fluid_ray/article/details/109556867
     #####PATH#####
-    train_root = './detect_data_separate/trains'
-    valid_root = './detect_data_separate/valid'
+    train_root = './follow_whiteBG_balckTG/detect_data_separate/trains'
+    valid_root = './follow_whiteBG_balckTG/detect_data_separate/valid'
     image_folder = 'images'
     label_folder = 'labels'
 
@@ -152,7 +171,7 @@ def main():
    
     #####model setting#####
     #model = Net().to(device)   #自製model
-    model= models.resnet50(pretrained=False)
+    model= models.resnet50(pretrained=True)
     #model= models.vgg16(pretrained=True) #會梯度爆炸
     #* 修改全連線層的輸出 *#
     
@@ -168,7 +187,7 @@ def main():
     print(model)
     
     #
-    LR = 0.0001
+    LR = 0.001
     EPOCH_SET = 1000
 
     optimizer = torch.optim.SGD(model.parameters(),lr=LR)
@@ -186,7 +205,7 @@ def mkdir():
         if not os.path.isdir(path):
             os.mkdir(path)
             os.makedirs(os.path.join(path,'train','save'))
-            os.mkdir(os.path.join(path,'valid'))
+            os.makedirs(os.path.join(path,'valid','each_EOPCH'))
             break
         first += 1
     return path

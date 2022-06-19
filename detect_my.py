@@ -107,7 +107,7 @@ def detect(save_img=False):
                 # Rescale boxes from img_size to im0 size
                 det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
                 #####################################################
-                new_im0 = im0
+                new_im0 = im0.copy()
                 y, x, channel = new_im0.shape
                 #cv2.imshow(str(p), im0)
                 #cv2.waitKey()
@@ -127,7 +127,7 @@ def detect(save_img=False):
 
                     if save_img or view_img or True:  # Add bbox to image
                         label = f'{names[int(cls)]} {conf:.2f}'
-                        #plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
                         #####################################################
                         xyxy_num_0 = int(xyxy[0].cpu().numpy())#left x
                         xyxy_num_1 = int(xyxy[1].cpu().numpy())#left y
@@ -141,7 +141,7 @@ def detect(save_img=False):
                         new_img = numpy.ones((y,x,3), numpy.uint8)
                         new_img[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2] = crop_img
                         
-                        detect_depth_dis(new_im0, new_img, output, save_dir, opt)
+                        detect_depth_dis(new_im0, new_img, output, save_dir, opt, device)
                         #####################################################
 
 
@@ -186,8 +186,8 @@ def default_loader(img_pros):
     img_pros = img_pros.convert('RGB')
     return img_pros
     
-def detect_depth_dis( img_origin, img_pros, output, save_dir, opt):
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+def detect_depth_dis( img_origin, img_pros, output, save_dir, opt, device):
+    #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     #print('GPU State:', device)
     
     #model=torch.load('./train_run/6-11_resnet101/train/save/last.pt')
@@ -208,19 +208,22 @@ def detect_depth_dis( img_origin, img_pros, output, save_dir, opt):
     img = img.to(device)
     out = model(img)
     img_detect = out.cpu().detach().numpy()
-    angle = img_detect[0][0]*180
-    dis = img_detect[0][1]*200
+    angle = img_detect[0][0]*180 #draw angle
+    dis = img_detect[0][1]*200  #draw dis
     img_origin = cv2.resize(img_origin, (640, 360), interpolation=cv2.INTER_AREA)
     y, x, channel = img_origin.shape
 
+    img_pros = cv2.resize(img_pros, (160, 90), interpolation=cv2.INTER_AREA)
     img = np.ones((y,x+200,3), np.uint8)*255
     img[0:y, 0:x] = img_origin
+    img[y-90:y, x+20:x+180] = img_pros
+    
 
     img = cv2.line(img, (x,50), (x+200,50), (0,0,0), 2)
     img = cv2.line(img, (x+100,50), ((x+100)+round(math.cos(math.radians(angle))*dis),50+round(math.sin(math.radians(angle))*dis)), (0,0,255), 2)
     
-    angle_txt = str(round(img_detect[0][0]*180,2))
-    dis_txt = str(round(img_detect[0][1]*3000,2))
+    angle_txt = str(round(img_detect[0][0]*180,2)) #real angle
+    dis_txt = str(round(img_detect[0][1]*1000,2)) #real dis
     cv2.putText(img, 'angle : '+angle_txt, (x, 200), cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
     cv2.putText(img, 'dis : '+dis_txt+'mm', (x, 250), cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
     
