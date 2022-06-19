@@ -1,15 +1,17 @@
 import torch
 import os
 from torch.utils.data import Dataset
-from PIL import Image
+from torchvision.io import read_image, ImageReadMode
+#from PIL import Image
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def default_loader(path):
-    return Image.open(path).convert('RGB')
+    return read_image(path, mode=ImageReadMode.RGB)
+    #return Image.open(path).convert('RGB')
 
 class MyDataset(Dataset):
-    def __init__(self, root, image_folder, label_folder, transform=None, target_transform=None, loader=default_loader):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    def __init__(self, root, device, image_folder, label_folder, transform=None, target_transform=None, loader=default_loader):
         super(Dataset, self).__init__()
         images = []
         labels = []
@@ -46,13 +48,17 @@ class MyDataset(Dataset):
         self.transform = transform
         self.target_transform = target_transform
         self.loader = loader
+        self.device = device
 
     def __getitem__(self, item):
+        #torch.set_printoptions(profile="full")
         imageName = self.images[item]
         image = self.loader(imageName)
+        image = image.to(self.device)
+        
         if self.transform is not None:
-            image = self.transform(image)
-        ##print(imageName)
+            image = self.transform(image)   
+        
         labels = self.labels[item]
         labels = torch.Tensor(labels)
         '''

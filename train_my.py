@@ -76,7 +76,8 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 writer = SummaryWriter()
                 '''
                 start = time.time()
-                img, label = img.to(device), label.to(device)  
+                img, label = img.to(device), label.to(device) 
+                #print(img)
                 '''
                 angle_out, dis_out = model(img)
                 angle_out, dis_out = angle_out.squeeze(-1), dis_out.squeeze(-1) #訓練時batch大於1 時，loss就不下降，訓練效果很差。
@@ -145,35 +146,44 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
         plt.cla()
       
 def main():
-    
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    print('GPU State:', device)
-
     torch.set_printoptions(profile="defult")#打印tensor的精度，https://blog.csdn.net/Fluid_ray/article/details/109556867
     #####PATH#####
-    train_root = './follow_whiteBG_balckTG/detect_data_separate/trains'
-    valid_root = './follow_whiteBG_balckTG/detect_data_separate/valid'
+    train_root = './2022-6-19_follow_blackBG_whiteTG/detect_data_separate/trains'
+    valid_root = './2022-6-19_follow_blackBG_whiteTG/detect_data_separate/valid'
     image_folder = 'images'
     label_folder = 'labels'
 
     #####Dataset setting#####
-    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((640,360)),
+    Resize_set = torchvision.transforms.Resize((640,360),antialias = True)
+    ColorJitter_set = transforms.ColorJitter(brightness=(1, 10), contrast=(1, 10), saturation=(1, 10), hue=(-0.2, 0.2))#亮度(brightness)、對比(contrast)、飽和度(saturation)和色調(hue)
+    ByteToFloat = torchvision.transforms.ConvertImageDtype(torch.float)
+    '''
+    train_augmentation = torchvision.transforms.Compose([Resize_set,
+                                                        ColorJitter_set,
                                                         torchvision.transforms.ToTensor(),
                                                         #torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
                                                         ]) 
+    '''
+    train_augmentation = nn.Sequential(Resize_set,
+                                        ColorJitter_set,
+                                        ByteToFloat
+                                        )
     #####train dataloder#####    
     batch_size = 8
-    train_data=MyDataset(root=train_root, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
+    train_data=MyDataset(root=train_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
     #####test dataloder##### 
-    valid_data=MyDataset(root=valid_root, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
+    valid_data=MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
     valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size)
    
     #####model setting#####
-    #model = Net().to(device)   #自製model
+    
+    #model = Net()   #自製model
     model= models.resnet50(pretrained=True)
     #model= models.vgg16(pretrained=True) #會梯度爆炸
-    #* 修改全連線層的輸出 *#
+    
+    #*** 修改全連線層的輸出 ***#
     
     #適用:resnet
     num_ftrs = model.fc.in_features#in_feature is the number of inputs for your linear layer
@@ -185,7 +195,7 @@ def main():
     '''
     model = model.to(device)
     print(model)
-    
+    print('GPU State:', device)
     #
     LR = 0.001
     EPOCH_SET = 1000
@@ -203,7 +213,6 @@ def mkdir():
     while True:
         path = './runs/train/exp'+str(first)
         if not os.path.isdir(path):
-            os.mkdir(path)
             os.makedirs(os.path.join(path,'train','save'))
             os.makedirs(os.path.join(path,'valid','each_EOPCH'))
             break
