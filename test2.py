@@ -39,3 +39,4 @@ if __name__ == "__main__":
     out = cv2.VideoWriter('output.mp4',fourcc, 20.0, (800,600))
     
     detect(root,out)
+    #test
