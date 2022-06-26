@@ -48,7 +48,7 @@ def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, 
     plt.savefig(os.path.join(save_path,'valid/each_EOPCH/EPOCH_'+str(epoch).zfill(6)+'.png'))
     plt.cla()
     
-    print('Valid_EPOCH : (%d / %d):[mean_loss:%.8f , %.2fs]' % (epoch, EPOCH_SET, draw_loss, time.time()-start))
+    print('Valid_EPOCH : (%d / %d):[mean_loss:%.8f , %.2fs]' % (epoch, EPOCH_SET-1, draw_loss, time.time()-start))
     
     #####save best model#####
     if epoch == 0:
