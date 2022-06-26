@@ -139,7 +139,7 @@ def detect(save_img=False):
                         #cv2.waitKey()
                         
                         new_img = numpy.ones((y,x,3), numpy.uint8)
-                        new_img[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2] = crop_img
+                        new_img[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2] = 255#crop_img
                         
                         detect_depth_dis(new_im0, new_img, output, save_dir, opt, device)
                         #####################################################
@@ -191,7 +191,7 @@ def detect_depth_dis( img_origin, img_pros, output, save_dir, opt, device):
     #print('GPU State:', device)
     
     #model=torch.load('./train_run/6-11_resnet101/train/save/last.pt')
-    model=torch.load(opt.myweight)
+    model=torch.load(opt.myweight, map_location=device)
     model.eval()
     num_ftrs = model.fc.in_features#in_feature is the number of inputs for your linear layer
     model.fc = nn.Linear(num_ftrs, 2)
