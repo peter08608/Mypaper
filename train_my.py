@@ -22,11 +22,13 @@ from Dataset import *
 best_loss = 0.0
 best_EPOCH = 0
 valid_loss = []
+valid_loss_every100 = []
 def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, save_path):
     #####valid setting#####
     global best_loss
     global best_EPOCH
     global valid_loss
+    global valid_loss_every100
     model.eval()
     draw_loss = []
     loss_graph = 0.0
@@ -42,6 +44,7 @@ def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, 
     plt.plot(x, draw_loss, '.-')
     draw_loss = np.mean(draw_loss)
     valid_loss.append(draw_loss)
+    valid_loss_every100.append(draw_loss)
     plt.title('Valid : BATCH_SIZE = ' + str(batch_size) + 'loss mean = ' + str(draw_loss))
     plt.xlabel('per '+str(batch_size))
     plt.ylabel('LOSS')
@@ -64,6 +67,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
     #####train setting#####
     draw_loss = []
     global valid_loss
+    global valid_loss_every100
     for epoch in range(EPOCH_SET):
         model.train()
         print_mse = ''
@@ -142,8 +146,17 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
         plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
         plt.xlabel('EPOCH')
         plt.ylabel('LOSS')
-        plt.savefig(os.path.join(save_path,'valid/valid_loss.png'))
+        plt.savefig(os.path.join(save_path,'valid/(valid_loss).png'))
         plt.cla()
+        if (epoch % 100) == 0 :
+            x = range(0,len(valid_loss_every100))
+            plt.plot(x, valid_loss_every100, '.-')
+            plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
+            plt.xlabel('EPOCH')
+            plt.ylabel('LOSS')
+            plt.savefig(os.path.join(save_path,'valid/'+str(epoch)+'.png'))
+            plt.cla()
+            valid_loss_every100 = []
       
 def main():
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
