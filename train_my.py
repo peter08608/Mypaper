@@ -102,7 +102,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 
                 optimizer.zero_grad()
                 loss = loss_func(out,label)
-                total_loss += loss.item() #test 此處要修正
+                total_loss += loss.item() 
                 loss.backward()
                 optimizer.step()
                 
