@@ -52,13 +52,34 @@ def txt_change():
         f = open(path, 'w')
         f.write(txt)
         f.close()
-    
-if __name__ == "__main__":
-    '''
-    root = r"C:\Users\PeterChuang\Desktop\Mypaper\detect_data_separate\valid\images"
 
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter('output.mp4',fourcc, 20.0, (800,600))
+def txt_list():
+    import numpy
+    origin_label_path = r"C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_muti_pattern\label\00001.txt"
+    All_origin_data = []
+    f = open(origin_label_path)
+    for line in f.readlines():
+        line = line.split(' ')
+        All_origin_data.append([float(line[0]),float(line[1])])
+    f.close()
+    All_origin_data = numpy.array(All_origin_data)#list to numpy
+    min_dis_index = numpy.argmin(All_origin_data[:,0]) #find min dis
+    min_dis_at_angle, min_dis = All_origin_data[min_dis_index]
     
-    detect(root,out)
-    '''
+    difference_array = numpy.absolute(All_origin_data[:,0] - 340)
+    index_array = difference_array.argmin()
+    target_angle, target_dis = All_origin_data[index_array]
+    #print(min_dis_at_angle,':',min_dis)
+    #print(All_origin_data[:,1])
+    print(difference_array)
+    print(index_array)
+    print(target_angle,':', target_dis)
+if __name__ == "__main__":
+    txt_list()
+
+    #root = r'C:\Users\PeterChuang\Desktop\Mypaper\detect_data_separate\valid\images'
+
+    #fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    #out = cv2.VideoWriter('output.mp4',fourcc, 20.0, (800,600))
+    
+    #detect(root,out)

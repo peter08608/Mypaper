@@ -4,15 +4,9 @@ from pathlib import Path
 
 import cv2
 import torch
-import torch.nn as nn
-import torchvision
-import torchvision.models as models
 import torch.backends.cudnn as cudnn
 from numpy import random
-from PIL import Image
 import numpy
-import numpy as np
-import math
 import os
 
 from models.experimental import attempt_load
@@ -22,6 +16,8 @@ from utils.general import check_img_size, check_requirements, check_imshow, non_
 from utils.plots import plot_one_box
 from utils.torch_utils import select_device, load_classifier, time_synchronized
 
+from my_utils.crop_img import *
+from my_utils.detect_depth_dis import *
 
 def detect(save_img=False):
     source, weights, view_img, save_txt, imgsz = opt.source, opt.weights, opt.view_img, opt.save_txt, opt.img_size
@@ -134,12 +130,7 @@ def detect(save_img=False):
                         xyxy_num_2 = int(xyxy[2].cpu().numpy())#right x
                         xyxy_num_3 = int(xyxy[3].cpu().numpy())#right y
                         
-                        crop_img = new_im0[xyxy_num_1:xyxy_num_3,xyxy_num_0:xyxy_num_2]
-                        #cv2.imshow(str(p), crop_img)
-                        #cv2.waitKey()
-                        
-                        new_img = numpy.ones((y,x,3), numpy.uint8)
-                        new_img[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2] = 255#crop_img
+                        new_img = crop_follow_blackBG(new_im0, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)
                         
                         detect_depth_dis(new_im0, new_img, output, save_dir, opt, device)
                         #####################################################
@@ -180,56 +171,6 @@ def detect(save_img=False):
     output.release()
     
     print(f'Done. ({time.time() - t0:.3f}s)')
-
-def default_loader(img_pros):
-    img_pros = Image.fromarray(cv2.cvtColor(img_pros, cv2.COLOR_BGR2RGB))
-    img_pros = img_pros.convert('RGB')
-    return img_pros
-    
-def detect_depth_dis( img_origin, img_pros, output, save_dir, opt, device):
-    #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-    #print('GPU State:', device)
-    
-    #model=torch.load('./train_run/6-11_resnet101/train/save/last.pt')
-    model=torch.load(opt.myweight, map_location=device)
-    model.eval()
-    num_ftrs = model.fc.in_features#in_feature is the number of inputs for your linear layer
-    model.fc = nn.Linear(num_ftrs, 2)
-    model = model.to(device)
-    #print(model)
-    
-    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((640,360)),
-                                                        torchvision.transforms.ToTensor(),
-                                                        #torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
-                                                        ]) 
-    img = default_loader(img_pros)
-    img = train_augmentation(img)
-    img = img.unsqueeze(0)
-    img = img.to(device)
-    out = model(img)
-    img_detect = out.cpu().detach().numpy()
-    angle = img_detect[0][0]*180 #draw angle
-    dis = img_detect[0][1]*200  #draw dis
-    img_origin = cv2.resize(img_origin, (640, 360), interpolation=cv2.INTER_AREA)
-    y, x, channel = img_origin.shape
-
-    img_pros = cv2.resize(img_pros, (160, 90), interpolation=cv2.INTER_AREA)
-    img = np.ones((y,x+200,3), np.uint8)*255
-    img[0:y, 0:x] = img_origin
-    img[y-90:y, x+20:x+180] = img_pros
-    
-
-    img = cv2.line(img, (x,50), (x+200,50), (0,0,0), 2)
-    img = cv2.line(img, (x+100,50), ((x+100)+round(math.cos(math.radians(angle))*dis),50+round(math.sin(math.radians(angle))*dis)), (0,0,255), 2)
-    
-    angle_txt = str(round(img_detect[0][0]*180,2)) #real angle
-    dis_txt = str(round(img_detect[0][1]*1000,2)) #real dis
-    cv2.putText(img, 'angle : '+angle_txt, (x, 200), cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-    cv2.putText(img, 'dis : '+dis_txt+'mm', (x, 250), cv2.FONT_HERSHEY_TRIPLEX, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-    
-    #cv2.imshow('image',img)
-    #cv2.waitKey(20)
-    output.write(img)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

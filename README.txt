@@ -28,8 +28,8 @@ width height:標記方框的寬高(w,h)，w/原圖寬=width、h/原圖高=height
 https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
 
 #for depth_dis
-python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_video_test\charizard.mp4" --weights ./pokemon_yolov5_weight/best.pt --myweight ./runs/train/exp2/train/save/best.pt --device cpu --nosave
+python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_test\pikachu.mp4" --weights ./pokemon_yolov5_weight/best.pt --myweight "C:\Users\PeterChuang\Desktop\Mypaper\train_run\7-2_resnet50+pretrain+data_augmentation\exp1\train\save\best.pt" --device 0 --nosave
 #for create dataset
-python detect_create_dataset.py --source C:\Users\PeterChuang\Desktop\pokemon_muti_pattern\image\00000.jpg --weight ./pokemon_yolov5_weight/best.pt --device 0 
+python detect_create_dataset.py --source "C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_muti_pattern\image\00000.jpg" --weight ../pokemon_yolov5_weight/best.pt --device 0 
 
 python detect.py --source ../pokemon_pattern/image --weight ../pokemon_yolov5_weight/best.pt --device cpu --nosave

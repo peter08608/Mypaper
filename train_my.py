@@ -17,8 +17,8 @@ import cv2
 import os
 import time
 #Mine
-from CNN_model import *
-from Dataset import *
+from my_utils.CNN_model import *
+from my_utils.Dataset import *
 best_loss = 0.0
 best_EPOCH = 0
 valid_loss = []
@@ -148,7 +148,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
         plt.ylabel('LOSS')
         plt.savefig(os.path.join(save_path,'valid/(valid_loss).png'))
         plt.cla()
-        if (epoch % 100) == 0 :
+        if ((epoch % 100) == 0) and (epoch != 0) :
             x = range(0,len(valid_loss_every100))
             plt.plot(x, valid_loss_every100, '.-')
             plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
