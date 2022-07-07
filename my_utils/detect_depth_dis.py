@@ -21,7 +21,7 @@ def detect_depth_dis( img_origin, img_pros, output, save_dir, opt, device):
     model.eval()
     model = model.to(device)
     #print(model)
-    Resize_set = torchvision.transforms.Resize((640,360),antialias = True)
+    Resize_set = torchvision.transforms.Resize((640,360),antialias = True) #這裡要注意(y,x)
     ByteToFloat = torchvision.transforms.ConvertImageDtype(torch.float)
 
     train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((640,360)),

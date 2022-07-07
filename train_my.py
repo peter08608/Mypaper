@@ -9,8 +9,8 @@ import torchvision
 import torchvision.models as models
 from tqdm import tqdm
 
-from torch.utils.tensorboard import SummaryWriter
 #Python
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
@@ -19,10 +19,12 @@ import time
 #Mine
 from my_utils.CNN_model import *
 from my_utils.Dataset import *
+from utils.torch_utils import select_device
 best_loss = 0.0
 best_EPOCH = 0
 valid_loss = []
 valid_loss_every100 = []
+
 def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, save_path):
     #####valid setting#####
     global best_loss
@@ -114,6 +116,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 
                 '''
                 #####tensorboard#####
+                from torch.utils.tensorboard import SummaryWriter
                 grid = torchvision.utils.make_grid(img)
                 writer.add_image('images', grid, 0)
                 writer.add_graph(model, img)
@@ -159,17 +162,19 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
             valid_loss_every100 = []
       
 def main():
-    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    device = select_device(opt.device, batch_size=opt.batch_size)
+    #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     torch.set_printoptions(profile="defult")#打印tensor的精度，https://blog.csdn.net/Fluid_ray/article/details/109556867
     #####PATH#####
-    train_root = './2022-6-19_follow_blackBG_whiteTG/detect_data_separate/trains'
-    valid_root = './2022-6-19_follow_blackBG_whiteTG/detect_data_separate/valid'
+    train_root = os.path.join(opt.folder, 'trains')
+    valid_root = os.path.join(opt.folder, 'valid')
     image_folder = 'images'
     label_folder = 'labels'
 
     #####Dataset setting#####
-    Resize_set = torchvision.transforms.Resize((640,360),antialias = True)
-    ColorJitter_set = transforms.ColorJitter(brightness=(1, 10), contrast=(1, 10), saturation=(1, 10), hue=(-0.2, 0.2))#亮度(brightness)、對比(contrast)、飽和度(saturation)和色調(hue)
+    re_y, re_x = opt.resize.split(',')
+    Resize_set = torchvision.transforms.Resize((int(re_y), int(re_x)),antialias = True)
+    ColorJitter_set = transforms.ColorJitter(brightness=(0, 3), contrast=(0, 3), saturation=(0, 3), hue=(-0.1, 0.1))#亮度(brightness)、對比(contrast)、飽和度(saturation)和色調(hue)
     ByteToFloat = torchvision.transforms.ConvertImageDtype(torch.float)
     '''
     train_augmentation = torchvision.transforms.Compose([Resize_set,
@@ -183,12 +188,12 @@ def main():
                                         ByteToFloat
                                         )
     #####train dataloder#####    
-    batch_size = 8
+    batch_size = opt.batch_size
     train_data=MyDataset(root=train_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
-    train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
     #####test dataloder##### 
-    valid_data=MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
-    valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size)
+    valid_data=MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder)
+    valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=True)
    
     #####model setting#####
     
@@ -211,7 +216,7 @@ def main():
     print('GPU State:', device)
     #
     LR = 0.001
-    EPOCH_SET = 1000
+    EPOCH_SET = opt.epochs
 
     optimizer = torch.optim.SGD(model.parameters(),lr=LR)
     loss_func = nn.MSELoss()
@@ -234,4 +239,12 @@ def mkdir():
             
     
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--folder', type=str, default='', help='my training data path')
+    parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--batch-size', type=int, default=8, help='total batch size for all GPUs')
+    parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
+    parser.add_argument('--resize', type=str, default='640,640', help='resize img [y, x]')
+    opt = parser.parse_args()
+    
     main()

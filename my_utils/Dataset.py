@@ -66,6 +66,12 @@ class MyDataset(Dataset):
         labels_angle = self.labels_angle[item]
         labels_distance = self.labels_distance[item]
         '''
+        '''
+        from PIL import Image
+        from torchvision import transforms
+        image = transforms.ToPILImage()(image)
+        image.show()
+        '''
         return image, labels
 
     def __len__(self):
