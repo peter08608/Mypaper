@@ -32,4 +32,4 @@ python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_test\pikachu.
 #for create dataset
 python detect_create_dataset.py --source C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_single_pattern\all\image --weight ../pokemon_yolov5_weight/best.pt --device 0 
 #for training
-python train_my.py --folder C:\Users\PeterChuang\Desktop\Mypaper\middle_crop_600\detect_data_separate --batch 16 --epochs 1000 --device 0
+python train_my.py --folder C:\Users\PeterChuang\Desktop\Mypaper\middle_crop_600\detect_data_separate --batch 32 --epochs 1000 --lr 0.0005 --resize 300,300 --device 0

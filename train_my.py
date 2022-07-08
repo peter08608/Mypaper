@@ -128,7 +128,7 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
             #tqdm._instances.clear()
             t.close()
             mean_loss = total_loss / len(train_loader)
-            print('Train_EPOCH : (%d / %d):[mean_loss:%.8f]' % (epoch, EPOCH_SET, mean_loss))
+            print('Train_EPOCH : (%d / %d):[mean_loss:%.8f]' % (epoch, EPOCH_SET-1, mean_loss))
             #####save last model#####
             torch.save(model,os.path.join(save_path,'train/save/last.pt'))
             #####valid#####
@@ -215,7 +215,7 @@ def main():
     print(model)
     print('GPU State:', device)
     #
-    LR = 0.001
+    LR = opt.lr
     EPOCH_SET = opt.epochs
 
     optimizer = torch.optim.SGD(model.parameters(),lr=LR)
@@ -242,6 +242,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--folder', type=str, default='', help='my training data path')
     parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--batch-size', type=int, default=8, help='total batch size for all GPUs')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--resize', type=str, default='640,640', help='resize img [y, x]')
