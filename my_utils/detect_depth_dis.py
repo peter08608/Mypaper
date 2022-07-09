@@ -24,8 +24,8 @@ def detect_depth_dis( img_origin, img_pros, output, save_dir, opt, device):
     Resize_set = torchvision.transforms.Resize((640,360),antialias = True) #這裡要注意(y,x)
     ByteToFloat = torchvision.transforms.ConvertImageDtype(torch.float)
 
-    train_augmentation = torchvision.transforms.Compose([torchvision.transforms.Resize((640,360)),
-                                                        torchvision.transforms.ToTensor(),
+    train_augmentation = torchvision.transforms.Compose([Resize_set,
+                                                        ByteToFloat,
                                                         #torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
                                                         ]) 
 
@@ -38,7 +38,7 @@ def detect_depth_dis( img_origin, img_pros, output, save_dir, opt, device):
     img_detect = out.cpu().detach().numpy()
     angle = img_detect[0][0]*180 #draw angle
     dis = img_detect[0][1]*50  #draw dis
-    img_origin = cv2.resize(img_origin, (640, 360), interpolation=cv2.INTER_AREA)
+    img_origin = cv2.resize(img_origin, (640, 360), interpolation=cv2.INTER_AREA) 
     y, x, channel = img_origin.shape
 
     img_pros = cv2.resize(img_pros, (160, 90), interpolation=cv2.INTER_AREA)

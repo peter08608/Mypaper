@@ -173,7 +173,7 @@ def main():
 
     #####Dataset setting#####
     re_y, re_x = opt.resize.split(',')
-    Resize_set = torchvision.transforms.Resize((int(re_y), int(re_x)),antialias = True)
+    Resize_set = torchvision.transforms.Resize((int(re_y), int(re_x)),antialias = True) #(y, x)
     ColorJitter_set = transforms.ColorJitter(brightness=(0, 3), contrast=(0, 3), saturation=(0, 3), hue=(-0.1, 0.1))#亮度(brightness)、對比(contrast)、飽和度(saturation)和色調(hue)
     ByteToFloat = torchvision.transforms.ConvertImageDtype(torch.float)
     '''
@@ -189,16 +189,16 @@ def main():
                                         )
     #####train dataloder#####    
     batch_size = opt.batch_size
-    train_data=MyDataset(root=train_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
+    train_data = MyDataset(root=train_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
     #####test dataloder##### 
-    valid_data=MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder)
+    valid_data = MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder)
     valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=True)
    
     #####model setting#####
     
     #model = Net()   #自製model
-    model= models.resnet50(pretrained=True)
+    model = models.resnet50(pretrained=True)
     #model= models.vgg16(pretrained=True) #會梯度爆炸
     
     #*** 修改全連線層的輸出 ***#
