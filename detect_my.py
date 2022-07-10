@@ -28,11 +28,7 @@ def detect(save_img=False):
     # Directories
     save_dir = Path(increment_path(Path(opt.project) / opt.name, exist_ok=opt.exist_ok))  # increment run
     (save_dir / 'labels' if save_txt else save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-    ################################################
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output = cv2.VideoWriter(os.path.join(save_dir,'output.mp4'),fourcc, 30.0, (840,360))
     
-    ################################################
     # Initialize
     set_logging()
     device = select_device(opt.device)
@@ -44,6 +40,17 @@ def detect(save_img=False):
     imgsz = check_img_size(imgsz, s=stride)  # check img_size
     if half:
         model.half()  # to FP16
+        
+    ################################################
+    #angel dis model
+    my_model=torch.load(opt.myweight, map_location=device)
+    my_model.eval()
+    my_model = my_model.to(device)
+    #output video
+    sh_x, sh_y = opt.show_size.split(',')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    output = cv2.VideoWriter(os.path.join(save_dir,'output.mp4'),fourcc, 30.0, (int(sh_x)+200, int(sh_y)))
+    ################################################
 
     # Second-stage classifier
     classify = False
@@ -107,6 +114,8 @@ def detect(save_img=False):
                 y, x, channel = new_im0.shape
                 #cv2.imshow(str(p), im0)
                 #cv2.waitKey()
+                
+                cropsz_x, cropsz_y = opt.crop_size.split(',')
                 #####################################################
                 # Print results
                 for c in det[:, -1].unique():
@@ -130,9 +139,10 @@ def detect(save_img=False):
                         xyxy_num_2 = int(xyxy[2].cpu().numpy())#right x
                         xyxy_num_3 = int(xyxy[3].cpu().numpy())#right y
                         
-                        new_img = crop_follow_blackBG(new_im0, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)
+                        #new_img = crop_follow_blackBG(new_im0, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)
+                        new_img = adaptive_center_crop(new_im0, (int(cropsz_x), int(cropsz_y)), xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)#目標置中裁切(原始圖, 裁切大小(x,y), l_x, l_y, r_x, r_y)
                         
-                        detect_depth_dis(new_im0, new_img, output, save_dir, opt, device)
+                        detect_depth_dis(new_im0, new_img, output, save_dir, opt, my_model, device)
                         #####################################################
 
 
@@ -167,15 +177,14 @@ def detect(save_img=False):
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
         print(f"Results saved to {save_dir}{s}")
-        
-    output.release()
     
     print(f'Done. ({time.time() - t0:.3f}s)')
+    
+    output.release()
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--weights', nargs='+', type=str, default='yolov5s.pt', help='model.pt path(s)')
-    parser.add_argument('--myweight', type=str, default='', help='my model.pt path(s)')
     parser.add_argument('--source', type=str, default='data/images', help='source')  # file/folder, 0 for webcam
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     parser.add_argument('--conf-thres', type=float, default=0.25, help='object confidence threshold')
@@ -192,6 +201,12 @@ if __name__ == '__main__':
     parser.add_argument('--project', default='runs/detect', help='save results to project/name')
     parser.add_argument('--name', default='exp', help='save results to project/name')
     parser.add_argument('--exist-ok', action='store_true', help='existing project/name ok, do not increment')
+    
+    parser.add_argument('--myweight', type=str, default='', help='my model.pt path(s)')
+    parser.add_argument('--crop-size', type=str, default='640,640', help='crop img size[x, y]')
+    parser.add_argument('--resize', type=str, default='640,640', help='transforms resize img [y, x]')
+    parser.add_argument('--show-size', type=str, default='640,640', help='resize output video by img [x, y]')
+    
     opt = parser.parse_args()
     print(opt)
     check_requirements(exclude=('pycocotools', 'thop'))

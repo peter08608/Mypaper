@@ -27,11 +27,11 @@ x_center y_center:標記方框中心座標(x,y)，x/原圖寬=x_center、y/原圖高=y_center
 width height:標記方框的寬高(w,h)，w/原圖寬=width、h/原圖高=height
 https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
 
-#for depth_dis
-python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_test\pikachu.mp4" --weights ./pokemon_yolov5_weight/best.pt --myweight "C:\Users\PeterChuang\Desktop\best.pt" --device 0 --nosave
+#for detect_depth_dis
+python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_test\pikachu.mp4" --weights ./pokemon_yolov5_weight/best.pt --myweight "C:\Users\PeterChuang\Desktop\Mypaper\train_run\exp2\train\save\best.pt" --crop-size 600,600 --resize 300,300 --show-size 640,360 --device 0 --nosave
 
 #for training
 python train_my.py --folder C:\Users\PeterChuang\Desktop\Mypaper\middle_crop_600\detect_data_separate --batch 32 --epochs 1000 --lr 0.0005 --resize 300,300 --device 0
 
 #for create dataset
-python detect_create_dataset.py --source C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_muti_pattern\image --weight ../pokemon_yolov5_weight/best.pt --device 0 
+python detect_create_dataset.py --source C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_muti_pattern\image --weight ../pokemon_yolov5_weight/best.pt --crop-size 600,600 --device 0 

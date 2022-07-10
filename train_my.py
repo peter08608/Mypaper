@@ -245,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--batch-size', type=int, default=8, help='total batch size for all GPUs')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
-    parser.add_argument('--resize', type=str, default='640,640', help='resize img [y, x]')
+    parser.add_argument('--resize', type=str, default='640,640', help='transforms resize img [y, x]')
     opt = parser.parse_args()
     
     main()
