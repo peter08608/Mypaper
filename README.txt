@@ -31,7 +31,7 @@ https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
 python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_test\pikachu.mp4" --weights ./pokemon_yolov5_weight/best.pt --myweight "C:\Users\PeterChuang\Desktop\Mypaper\train_run\exp2\train\save\best.pt" --crop-size 600,600 --resize 300,300 --show-size 640,360 --device 0 --nosave
 
 #for training
-python train_my.py --folder C:\Users\PeterChuang\Desktop\Mypaper\middle_crop_600\detect_data_separate --batch 32 --epochs 1000 --lr 0.0005 --resize 300,300 --device 0
+python train_my.py --folder ./2022-7-8_middle_crop_muti_and_single_600/detect_data_separate --batch 40 --epochs 1000 --lr 0.0005 --resize 300,300 --device 0
 
 #for create dataset
 python detect_create_dataset.py --source C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_muti_pattern\image --weight ../pokemon_yolov5_weight/best.pt --crop-size 600,600 --device 0 

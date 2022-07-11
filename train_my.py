@@ -82,7 +82,8 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 writer = SummaryWriter()
                 '''
                 start = time.time()
-                img, label = img.to(device), label.to(device) 
+                img, label = img.to(device).requires_grad_(), label.to(device).requires_grad_()
+                
                 #print(img)
                 '''
                 angle_out, dis_out = model(img)
