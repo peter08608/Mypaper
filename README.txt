@@ -32,7 +32,7 @@ python detect_my.py --source C:\Users\PeterChuang\Desktop\pokemon_image_test\2im
 ######注意--resize形式為(y,x)######
 
 #for training
-python train_my.py --folder ./center_crop_warp/detect_data_separate --batch 8 --epochs 1000 --lr 0.1 --resize 300,300 --ori_resize 180,320 --device 0
+python train_my.py --folder ./center_crop_warp_a/detect_data_separate --batch 8 --epochs 1000 --lr 0.1 --resize 300,300 --ori_resize 180,320 --device 0
 
 #for create dataset
 python detect_create_dataset.py --source "C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_single_pattern\all\image" --weight ../pokemon_yolov5_weight/best.pt --crop-size 600,600 --device 0 --nosave

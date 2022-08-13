@@ -33,7 +33,7 @@ def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, 
     global valid_loss
     global valid_loss_every100
     model.eval()
-    draw_loss = []
+    loss_list = []
     start = time.time()
     with torch.no_grad():
         for step, (img_origi, img_target, label) in enumerate(valid_loader):
@@ -42,15 +42,15 @@ def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, 
             out = model(img_target, img_origi)
             loss = loss_func(out,label.float())
     #####loss graph#####
-            draw_loss.append(loss.item())
-    draw_loss_mean = np.mean(draw_loss)
+            loss_list.append(loss.item())
+    draw_loss_mean = np.mean(loss_list)
     valid_loss.append(draw_loss_mean)
     valid_loss_every100.append(draw_loss_mean)
     
-    x = range(0,len(draw_loss))
+    x = range(0,len(loss_list))
     title = 'Valid : BATCH_SIZE = ' + str(batch_size) + 'loss mean = ' + str(draw_loss_mean)
     fig_path = os.path.join(save_path,'valid/each_EOPCH/EPOCH_'+str(epoch).zfill(6)+'.png')
-    draw_loss( x, draw_loss, fig_path, title=title, xlabel='per '+str(batch_size), ylabel='LOSS')
+    draw_loss( x, loss_list, fig_path, title=title, xlabel='per '+str(batch_size), ylabel='LOSS')
     
     print('Valid_EPOCH : (%d / %d):[mean_loss: angle:%.8f , %.2fs]' % (epoch, EPOCH_SET-1, draw_loss_mean, time.time()-start))
     
@@ -65,7 +65,7 @@ def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, 
         best_loss = draw_loss_mean
         torch.save(model,os.path.join(save_path,'train/save/best.pt'))
         
-    print('###current BEST EPOCH (a)'+str(best_EPOCH)+'  :  (d)'+str(best_EPOCH_d)+'###\n')
+    print('###current BEST EPOCH : '+str(best_EPOCH)+'###\n')
 def train(model , device, LR, EPOCH_SET, optimizer, lr_scheduler,loss_func, 
             train_loader, valid_loader, batch_size, save_path, accum_iter):
     #####train setting#####
