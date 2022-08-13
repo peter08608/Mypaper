@@ -50,6 +50,16 @@ def detect(save_img=False):
     sh_x, sh_y = opt.show_size.split(',')
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     output = cv2.VideoWriter(os.path.join(save_dir,'output.mp4'),fourcc, 30.0, (int(sh_x)+200, int(sh_y)))
+    
+    angle_loss_list = []
+    dis_loss_list = []
+    angle_MAE_list = []
+    dis_MAE_list = []
+    pro_time_list = []
+    
+    check = False
+    runtime = 0
+    save = []
     ################################################
 
     # Second-stage classifier
@@ -140,9 +150,33 @@ def detect(save_img=False):
                         xyxy_num_3 = int(xyxy[3].cpu().numpy())#right y
                         
                         #new_img = crop_follow_blackBG(new_im0, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)
+                        #new_img = crop_middle_blackBG(new_im0, (int(cropsz_x), int(cropsz_y)), xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)
                         new_img = adaptive_center_crop(new_im0, (int(cropsz_x), int(cropsz_y)), xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)#目標置中裁切(原始圖, 裁切大小(x,y), l_x, l_y, r_x, r_y)
+                        '''
+                        x_range = abs((xyxy_num_0-xyxy_num_2)/2)
+                        if runtime == 0:
+                            runtime = runtime + 1
+                            check = False
+                            save = detect_depth_dis(x_range, save, check, new_im0, new_img, output, opt, my_model, device, p)
+                        elif runtime == 1:
+                            runtime = 0
+                            check = True
+                            t = detect_depth_dis(x_range, save, check, new_im0, new_img, output, opt, my_model, device, p)
+                            angle_loss, dis_loss, angle_MAE, dis_MAE = t
+                            angle_loss_list.append(angle_loss)
+                            dis_loss_list.append(dis_loss)
+                            angle_MAE_list.append(angle_MAE)
+                            dis_MAE_list.append(dis_MAE)
+                            save = []
+                        '''
+                        t = detect_depth_dis( new_im0, new_img, output, opt, my_model, device, p)
+                        angle_loss, dis_loss, angle_MAE, dis_MAE, pro_time = t
+                        angle_loss_list.append(angle_loss)
+                        dis_loss_list.append(dis_loss)
+                        angle_MAE_list.append(angle_MAE)
+                        dis_MAE_list.append(dis_MAE)
+                        pro_time_list.append(pro_time)
                         
-                        detect_depth_dis(new_im0, new_img, output, save_dir, opt, my_model, device)
                         #####################################################
 
 
@@ -180,7 +214,24 @@ def detect(save_img=False):
     
     print(f'Done. ({time.time() - t0:.3f}s)')
     
+    ###############################
     output.release()
+    
+    angle_loss_arry, dis_loss_arry = numpy.array(angle_loss_list), numpy.array(dis_loss_list)
+    angle_MAE_arry, dis_MAE_arry = numpy.array(angle_MAE_list), numpy.array(dis_MAE_list)
+    pro_time_arry = numpy.array(pro_time_list)
+    angle_MSE, dis_MSE = numpy.mean(angle_loss_arry), numpy.mean(dis_loss_arry)
+    angle_RMSE, dis_RMSE = pow(angle_MSE, 0.5), pow(dis_MSE, 0.5)
+    angle_MAE, dis_MAE = numpy.mean(angle_MAE_arry), numpy.mean(dis_MAE_arry)
+    pro_time_mean = numpy.mean(pro_time_arry)
+    f = open(os.path.join(save_dir, 'Precision.txt'), 'w')
+    f.write(' angle_RMSE:'+str(angle_RMSE))
+    f.write('\n dis_RMSE:'+str(dis_RMSE))
+    f.write('\n angle_MAE:'+str(angle_MAE))
+    f.write('\n dis_MAE:'+str(dis_MAE))
+    f.write('\n pro_time_mean:'+str(pro_time_mean))
+    f.close()
+    ###############################
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

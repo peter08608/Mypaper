@@ -2,7 +2,7 @@ import math
 import os
 import cv2
 import numpy as np
-from detect_depth_dis import detect_depth_dis
+#from detect_depth_dis import detect_depth_dis
 
 def detect(root,out):
     All_image_name = os.listdir(root)
@@ -74,8 +74,60 @@ def txt_list():
     print(difference_array)
     print(index_array)
     print(target_angle,':', target_dis)
+
+from my_utils.CNN_model import * 
+def test_CNN():
+    import torch
+    
+    model = ResNet152()
+    input_1 = torch.ones(1, 3, 600, 600)
+    input_2 = torch.ones(1, 3, 720, 1280)*2
+    #print(input_1)
+    #print(input_2)
+    print(model(input_1,input_2))
+    
+def test_transforms():
+    import torchvision.transforms as T
+    from torchvision.io import read_image, ImageReadMode
+    from PIL import Image
+    import cv2
+    import numpy as np
+    #torch.set_printoptions(threshold=np.inf)
+    
+    path = r"C:\Users\PeterChuang\Desktop\Mypaper\test\trains\images\original\00000_1.jpg"
+    im = read_image(path, mode=ImageReadMode.RGB)
+    #im = torch.tensor([[[1],[2],[3]],[[1],[2],[3]],[[1],[2],[3]]], dtype=torch.uint8)
+    print(im)
+    #im = Image.open(path)
+    ori_Resize_set = T.transforms.Resize((int(180), int(320)),antialias = True)
+    ColorJitter_set = T.ColorJitter(brightness=(0, 3), contrast=(0, 3), saturation=(0, 3), hue=(-0.1, 0.1))
+    ByteToFloat = T.transforms.ConvertImageDtype(torch.float)
+    train_transform_original = nn.Sequential( ori_Resize_set, ByteToFloat)
+    im = train_transform_original(im)
+    #im = ori_Resize_set(im)
+    #(im)
+    #print(im.shape)
+    #im = ColorJitter_set(im)
+    #im = ByteToFloat(im)
+    print(train_transform_original)
+    #im = im*255
+    
+    #im = im.to(torch.uint8)
+    #im = im.numpy()
+    #im = Image.fromarray(torch.clamp(im * 255, min=0, max=255 ).byte().permute(1, 2, 0).cpu().numpy())
+    #print(im.shape)
+    #print(im)
+    #im = Image.fromarray(im)
+    #print(im)
+    #im = T.ToPILImage()(im.to('cpu'))
+    #print(im)
+    #im.show()
+    
+    
 if __name__ == "__main__":
-    txt_list()
+    test_transforms()
+    #test_CNN()
+    #txt_list()
 
     #root = r'C:\Users\PeterChuang\Desktop\Mypaper\detect_data_separate\valid\images'
 

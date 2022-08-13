@@ -33,11 +33,11 @@ def take_label_info_1(angle_range_setting, f, target_wpoint, my_filename):
     
 def crop_follow_blackBG(new_im0, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3):
     from PIL import Image
-    from rembg import remove
+    #from rembg import remove
     
     y, x, channel = new_im0.shape
     crop_img = new_im0[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2]
-    crop_img = remove(crop_img)
+    #crop_img = remove(crop_img)
     crop_img = Image.fromarray(crop_img)
     crop_img = crop_img.convert("RGB")
                             
@@ -46,6 +46,20 @@ def crop_follow_blackBG(new_im0, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3)
                             
     new_img = numpy.zeros((y,x,3), numpy.uint8)
     new_img[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2] = crop_img
+    return new_img
+    
+def crop_middle_blackBG(new_im0, fill_edge, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3):
+    from PIL import Image
+    import cv2
+    #from rembg import remove
+    
+    y, x, channel = new_im0.shape
+    crop_img = new_im0[xyxy_num_1:xyxy_num_3, xyxy_num_0:xyxy_num_2]
+    #crop_img = remove(crop_img)
+    fill_x, fill_y = round(abs(fill_edge[0]-x)/2), round(abs(fill_edge[1]-y)/2)
+    #print(fill_y,':',fill_x)
+    new_img = cv2.copyMakeBorder(crop_img, int(fill_y), int(fill_y), int(fill_x), int(fill_x), cv2.BORDER_CONSTANT)
+    
     return new_img
     
 def adaptive_center_crop(new_im0, fill_edge, xyxy_num_0, xyxy_num_1, xyxy_num_2, xyxy_num_3):

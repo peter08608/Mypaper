@@ -28,10 +28,11 @@ width height:標記方框的寬高(w,h)，w/原圖寬=width、h/原圖高=height
 https://github.com/ultralytics/yolov5/wiki/Train-Custom-Data
 
 #for detect_depth_dis
-python detect_my.py --source "C:\Users\PeterChuang\Desktop\pokemon_test\pikachu.mp4" --weights ./pokemon_yolov5_weight/best.pt --myweight "C:\Users\PeterChuang\Desktop\Mypaper\train_run\exp2\train\save\best.pt" --crop-size 600,600 --resize 300,300 --show-size 640,360 --device 0 --nosave
+python detect_my.py --source C:\Users\PeterChuang\Desktop\pokemon_image_test\2img\image --weights ./pokemon_yolov5_weight/best.pt --myweight "C:\Users\PeterChuang\Desktop\Mypaper\runs\train\exp2\train\save\best.pt" --crop-size 600,600 --resize 300,300 --show-size 640,360 --device 0 --nosave
+######注意--resize形式為(y,x)######
 
 #for training
-python train_my.py --folder ./2022-7-8_middle_crop_muti_and_single_600/detect_data_separate --batch 40 --epochs 1000 --lr 0.0005 --resize 300,300 --device 0
+python train_my.py --folder ./center_crop_warp/detect_data_separate --batch 8 --epochs 1000 --lr 0.1 --resize 300,300 --ori_resize 180,320 --device 0
 
 #for create dataset
-python detect_create_dataset.py --source C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_muti_pattern\image --weight ../pokemon_yolov5_weight/best.pt --crop-size 600,600 --device 0 
+python detect_create_dataset.py --source "C:\Users\PeterChuang\Desktop\yolov5_forMypaper\pokemon_single_pattern\all\image" --weight ../pokemon_yolov5_weight/best.pt --crop-size 600,600 --device 0 --nosave

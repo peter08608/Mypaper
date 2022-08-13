@@ -2,86 +2,149 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        '''
-        (in_channels輸入卷積層的圖片通道數,
-        out_channels輸出的通道數,
-        kernel_size輸出的通道數卷積核的大小，長寬相等5*5,
-        stride滑動步長爲1,
-        padding在輸入張量周圍補的邊)
-        '''
-        #公式:((原圖的寬或高-kernelSize+2*padding)/stride+1)/poolKernelSize
-        '''
-        self.conv1 = nn.Conv2d(3,128,kernel_size=3,stride=4,padding=0)
-        self.conv2 = nn.Conv2d(128,128,kernel_size=3,stride=1,padding=0)
-        self.conv3 = nn.Conv2d(128,128,kernel_size=3,stride=1,padding=0)
-        self.fc1 = nn.Linear(131072, 4096)
-        self.fc2 = nn.Linear(4096, 4070)
-        '''
-        self.conv1 = torch.nn.Sequential( #(300,300)
-            torch.nn.Conv2d(3, 32, (5,5), 1, 0),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(5)
-        )
-        self.conv2 = torch.nn.Sequential( #(60,60)
-            torch.nn.Conv2d(32, 64, (4,4), 1, 0),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(4)
-        )
-        self.conv3 = torch.nn.Sequential( #(15,15)
-            torch.nn.Conv2d(64, 128, (3,3), 1, 0),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(3)
-        )
-        self.conv4 = torch.nn.Sequential( #(5,5)
-            torch.nn.Conv2d(128, 64, (3,3), 1, 1),
-            torch.nn.ReLU(),
-            torch.nn.MaxPool2d(2)
-        )
-        #(9,16)
-        self.dense = torch.nn.Sequential(
-            torch.nn.Linear(64 * 2 * 2, 2000)
-        )
-        self.dense1 = torch.nn.Sequential(
-            torch.nn.Linear(2000, 1)
-        )
+'''
+(in_channels輸入卷積層的圖片通道數,
+out_channels輸出的通道數,
+kernel_size輸出的通道數卷積核的大小，長寬相等5*5,
+stride滑動步長爲1,
+padding在輸入張量周圍補的邊)
+'''
+#公式:((原圖的寬或高-kernelSize+2*padding)/stride+1)/poolKernelSize
+class BasicBlock(nn.Module):
+    expansion = 1
 
+    def __init__(self, in_planes, planes, stride=1):
+        super(BasicBlock, self).__init__()
+        self.conv1 = nn.Conv2d(
+            in_planes, planes, kernel_size=3, stride=stride, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
+                               stride=1, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion*planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.expansion*planes,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion*planes)
+            )
 
     def forward(self, x):
-        '''
-        angle_out = F.max_pool2d(self.conv1(x), 3, stride=2)
-        angle_out = F.max_pool2d(self.conv2(angle_out), 2, stride =1)
-        angle_out = self.conv3(angle_out)
-        angle_out = angle_out.view(angle_out.size(0), -1)
-        angle_out = F.relu(self.fc1(angle_out))
-        angle_out = F.relu(self.fc2(angle_out))
-        angle_out = angle_out.view(-1, 1, 55, 74)
+        out = F.relu(self.bn1(self.conv1(x)))
+        out = self.bn2(self.conv2(out))
+        out += self.shortcut(x)
+        out = F.relu(out)
+        return out
 
-        distance_out = F.max_pool2d(self.conv1(x), 3, stride=2)
-        distance_out = F.max_pool2d(self.conv2(distance_out), 2, stride =1)
-        distance_out = self.conv3(distance_out)
-        distance_out = distance_out.view(distance_out.size(0), -1)
-        distance_out = F.relu(self.fc1(distance_out))
-        distance_out = F.relu(self.fc2(distance_out))
-        distance_out = distance_out.view(-1, 1, 55, 74)
-        '''
-        #####CNN two head#####
-        conv1_out = self.conv1(x)
-        conv2_out = self.conv2(conv1_out)
-        conv3_out = self.conv3(conv2_out)
-        conv4_out = self.conv4(conv3_out)
-        
-        res = conv4_out.view(conv4_out.size(0), -1)
-        
-        angle_out = self.dense(res)
-        angle_out = self.dense1(angle_out)
 
-        distance_out = self.dense(res)
-        distance_out = self.dense1(distance_out)
-        
-        #print(conv4_out.size())
-        #print("-->{}".format(res.size()))
+class Bottleneck(nn.Module):
+    expansion = 4
 
-        return angle_out, distance_out
+    def __init__(self, in_planes, planes, stride=1):
+        super(Bottleneck, self).__init__()
+        self.conv1 = nn.Conv2d(in_planes, planes, kernel_size=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(planes)
+        self.conv2 = nn.Conv2d(planes, planes, kernel_size=3,
+                               stride=stride, padding=1, bias=False)
+        self.bn2 = nn.BatchNorm2d(planes)
+        self.conv3 = nn.Conv2d(planes, self.expansion *
+                               planes, kernel_size=1, bias=False)
+        self.bn3 = nn.BatchNorm2d(self.expansion*planes)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.shortcut = nn.Sequential()
+        if stride != 1 or in_planes != self.expansion*planes:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_planes, self.expansion*planes,
+                          kernel_size=1, stride=stride, bias=False),
+                nn.BatchNorm2d(self.expansion*planes)
+            )
+
+    def forward(self, x):
+        out = self.relu(self.bn1(self.conv1(x)))
+        out = self.relu(self.bn2(self.conv2(out)))
+        out = self.bn3(self.conv3(out))
+        out += self.shortcut(x)
+        out = self.relu(out)
+        return out
+
+
+class ResNet(nn.Module):
+    def __init__(self, block, num_blocks, num_classes=1):
+        super(ResNet, self).__init__()
+        self.in_planes = 64
+
+        self.conv1 = nn.Conv2d(3, 64, kernel_size=3,
+                               stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(64)
+        self.relu = nn.ReLU(inplace=True)#in-place计算可以节省内（显）存
+        self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, num_blocks[0], stride=1)
+        self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
+        self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
+        self.linear = nn.Linear(512*block.expansion, num_classes)
+        
+        #incoder
+        self.incoder = nn.Conv2d(1024, 512,
+                          kernel_size=1, stride=1, bias=False)
+
+    def _make_layer(self, block, planes, num_blocks, stride):
+        strides = [stride] + [1]*(num_blocks-1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_planes, planes, stride))
+            self.in_planes = planes * block.expansion
+        return nn.Sequential(*layers)    
+
+    def forward(self, img_1, img_2):
+        #img_1 stage 1,2
+        img_1 = self.maxpool(self.relu(self.bn1(self.conv1(img_1))))
+        img_1_y, img_1_x = img_1.size()[2], img_1.size()[3]
+        img_1 = self.layer1(img_1)
+        img_1 = self.layer2(img_1)
+
+        #img_2 stage 1,2
+        img_2 = self.maxpool(self.relu(self.bn1(self.conv1(img_2))))
+        self.AMP = nn.AdaptiveAvgPool2d((img_1_y, img_1_x))
+        img_2 = self.AMP(img_2)
+        img_2 = self.layer1(img_2)
+        img_2 = self.layer2(img_2)
+
+        #img_1,2 do stage 3,4
+        out = torch.cat((img_1,img_2),1)
+        out = self.incoder(out)
+        out = self.layer3(out)
+        out = self.layer4(out)
+        out = self.avgpool(out)
+        out = torch.flatten(out, 1)
+        out = self.linear(out)
+        out = out.squeeze(-1)
+        return out
+
+
+def ResNet18():
+    return ResNet(BasicBlock, [2, 2, 2, 2])
+
+
+def ResNet34():
+    return ResNet(BasicBlock, [3, 4, 6, 3])
+
+def ResNet20():
+    return ResNet(Bottleneck, [1, 1, 2, 2])
+
+def ResNet26():
+    return ResNet(Bottleneck, [2, 2, 2, 2])
+
+def ResNet50():
+    return ResNet(Bottleneck, [3, 4, 6, 3])
+
+
+def ResNet101():
+    return ResNet(Bottleneck, [3, 4, 23, 3])
+
+
+def ResNet152():
+    return ResNet(Bottleneck, [3, 8, 36, 3])

@@ -3,15 +3,15 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
-from torchvision import transforms
+import torchvision.transforms as T
 from torch.utils.data import DataLoader
 import torchvision
 import torchvision.models as models
-from tqdm import tqdm
+from utils.torch_utils import select_device
 
 #Python
 import argparse
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 import numpy as np
 import cv2
 import os
@@ -19,7 +19,8 @@ import time
 #Mine
 from my_utils.CNN_model import *
 from my_utils.Dataset import *
-from utils.torch_utils import select_device
+from my_utils.functions import *
+
 best_loss = 0.0
 best_EPOCH = 0
 valid_loss = []
@@ -33,56 +34,60 @@ def valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, 
     global valid_loss_every100
     model.eval()
     draw_loss = []
-    loss_graph = 0.0
     start = time.time()
     with torch.no_grad():
-        for step, (img, label) in enumerate(valid_loader):
-            img, label = img.to(device), label.to(device)
-            out = model(img)
-            total_loss = loss_func(out,label)
+        for step, (img_origi, img_target, label) in enumerate(valid_loader):
+            img_origi, img_target, label = (img_origi.to(device), img_target.to(device), label.to(device))
+            
+            out = model(img_target, img_origi)
+            loss = loss_func(out,label.float())
     #####loss graph#####
-            draw_loss.append(total_loss.item())
-    x = range(0,len(draw_loss))
-    plt.plot(x, draw_loss, '.-')
-    draw_loss = np.mean(draw_loss)
-    valid_loss.append(draw_loss)
-    valid_loss_every100.append(draw_loss)
-    plt.title('Valid : BATCH_SIZE = ' + str(batch_size) + 'loss mean = ' + str(draw_loss))
-    plt.xlabel('per '+str(batch_size))
-    plt.ylabel('LOSS')
-    plt.savefig(os.path.join(save_path,'valid/each_EOPCH/EPOCH_'+str(epoch).zfill(6)+'.png'))
-    plt.cla()
+            draw_loss.append(loss.item())
+    draw_loss_mean = np.mean(draw_loss)
+    valid_loss.append(draw_loss_mean)
+    valid_loss_every100.append(draw_loss_mean)
     
-    print('Valid_EPOCH : (%d / %d):[mean_loss:%.8f , %.2fs]' % (epoch, EPOCH_SET-1, draw_loss, time.time()-start))
+    x = range(0,len(draw_loss))
+    title = 'Valid : BATCH_SIZE = ' + str(batch_size) + 'loss mean = ' + str(draw_loss_mean)
+    fig_path = os.path.join(save_path,'valid/each_EOPCH/EPOCH_'+str(epoch).zfill(6)+'.png')
+    draw_loss( x, draw_loss, fig_path, title=title, xlabel='per '+str(batch_size), ylabel='LOSS')
+    
+    print('Valid_EPOCH : (%d / %d):[mean_loss: angle:%.8f , %.2fs]' % (epoch, EPOCH_SET-1, draw_loss_mean, time.time()-start))
     
     #####save best model#####
     if epoch == 0:
         best_EPOCH = epoch
-        best_loss = draw_loss
+        best_loss = draw_loss_mean
         torch.save(model,os.path.join(save_path,'train/save/best.pt'))
-    elif abs(best_loss) > abs(draw_loss) :
+        
+    elif abs(best_loss) > abs(draw_loss_mean) :
         best_EPOCH = epoch
-        best_loss = draw_loss
+        best_loss = draw_loss_mean
         torch.save(model,os.path.join(save_path,'train/save/best.pt'))
-    print('###current BEST EPOCH:'+str(best_EPOCH)+'###\n')
-def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size, save_path):
+        
+    print('###current BEST EPOCH (a)'+str(best_EPOCH)+'  :  (d)'+str(best_EPOCH_d)+'###\n')
+def train(model , device, LR, EPOCH_SET, optimizer, lr_scheduler,loss_func, 
+            train_loader, valid_loader, batch_size, save_path, accum_iter):
     #####train setting#####
-    draw_loss = []
+    train_loss = []
     global valid_loss
     global valid_loss_every100
+    optimizer.zero_grad()
     for epoch in range(EPOCH_SET):
         model.train()
+        start_eopch = time.time()
         print_mse = ''
         total_loss = 0
         with tqdm(total=len(train_loader), ncols=120, ascii=True) as t:
             
-            for step, (img, label) in enumerate(train_loader):
+            for step, (img_origi, img_target, label) in enumerate(train_loader):
                 '''
                 #####tensorboard#####
                 writer = SummaryWriter()
                 '''
                 start = time.time()
-                img, label = img.to(device).requires_grad_(), label.to(device).requires_grad_()
+                img_origi, img_target, label = (img_origi.to(device).requires_grad_(), img_target.to(device).requires_grad_(),
+                    label.to(device).requires_grad_())
                 
                 #print(img)
                 '''
@@ -100,14 +105,16 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 optimizer.step()
                 print('[%.2fs (%d / %d) angle_loss:%.4f distance_loss:%.4f]' % (time.time()-start, epoch, EPOCH_SET , angle_loss, distance_loss))
                 '''
-                
-                out = model(img)
-                
-                optimizer.zero_grad()
-                loss = loss_func(out,label)
+                #print(img)
+                out = model(img_target, img_origi)
+                loss = torch.div(loss_func(out,label.float()),accum_iter)
+                #loss = loss_func(out,label.float())
                 total_loss += loss.item() 
                 loss.backward()
-                optimizer.step()
+                
+                if ((step + 1) % accum_iter == 0) or (step + 1 == len(train_loader)):
+                    optimizer.step()
+                    optimizer.zero_grad()
                 
                 #####progress bar#####
                 t.set_description('Training : (%d / %d)' % (epoch, EPOCH_SET-1))
@@ -125,107 +132,112 @@ def train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batc
                 writer.add_scalar('Loss/distance_loss', distance_loss, step)
                 writer.close()
                 '''
-            
+            #更新學習率
+            lr = optimizer.param_groups[0]['lr']
+            lr_scheduler.step()
             #tqdm._instances.clear()
             t.close()
             mean_loss = total_loss / len(train_loader)
-            print('Train_EPOCH : (%d / %d):[mean_loss:%.8f]' % (epoch, EPOCH_SET-1, mean_loss))
+            print('Train_EPOCH : (%d / %d):[mean_loss: %.8f , %.2fs]' % (epoch, EPOCH_SET-1, mean_loss, time.time()-start_eopch))
             #####save last model#####
             torch.save(model,os.path.join(save_path,'train/save/last.pt'))
             #####valid#####
-            valid(model, device, epoch, EPOCH_SET, loss_func, train_loader, batch_size, save_path)
+            valid(model, device, epoch, EPOCH_SET, loss_func, valid_loader, batch_size, save_path)
             #####loss graph#####
-            draw_loss.append(mean_loss)
+            train_loss.append(mean_loss)
+        
         #draw train loss
-        x = range(0,len(draw_loss))
-        plt.plot(x, draw_loss, '.-')
-        plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
-        plt.xlabel('EPOCH')
-        plt.ylabel('LOSS')
-        plt.savefig(os.path.join(save_path,'train/train_loss.png'))
-        plt.cla()
+        x = range(0,len(train_loss))
+        title = 'Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(lr)
+        fig_path = os.path.join(save_path,'train','train_loss.png')
+        draw_loss( x, train_loss, fig_path, title=title)
+        
         #draw valid loss
         x = range(0,len(valid_loss))
-        plt.plot(x, valid_loss, '.-')
-        plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
-        plt.xlabel('EPOCH')
-        plt.ylabel('LOSS')
-        plt.savefig(os.path.join(save_path,'valid/(valid_loss).png'))
-        plt.cla()
+        title = 'Valid : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(lr)
+        fig_path = os.path.join(save_path,'valid','(valid_loss).png')
+        draw_loss( x, valid_loss, fig_path, title=title)
+        
         if ((epoch % 100) == 0) and (epoch != 0) :
             x = range(0,len(valid_loss_every100))
-            plt.plot(x, valid_loss_every100, '.-')
-            plt.title('Train : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(LR))
-            plt.xlabel('EPOCH')
-            plt.ylabel('LOSS')
-            plt.savefig(os.path.join(save_path,'valid/'+str(epoch)+'.png'))
-            plt.cla()
+            title = 'Valid : BATCH_SIZE = '+str(batch_size)+'; LEARNING_RATE:'+str(lr)
+            fig_path = os.path.join(save_path,'valid','loss100',str(epoch)+'.png')
+            draw_loss( x, valid_loss_every100, fig_path, title=title)
             valid_loss_every100 = []
       
 def main():
     device = select_device(opt.device, batch_size=opt.batch_size)
-    #device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    #device = torch.device('cuda:0' if torch.cuda.isvailable() else 'cpu')
     torch.set_printoptions(profile="defult")#打印tensor的精度，https://blog.csdn.net/Fluid_ray/article/details/109556867
-    #####PATH#####
+    #####PATH & setting#####
     train_root = os.path.join(opt.folder, 'trains')
     valid_root = os.path.join(opt.folder, 'valid')
-    image_folder = 'images'
+    image_folder = os.path.join('images','original'), os.path.join('images','angle')
+    image_folder_label = 0 #angle : 0, dis : 1
     label_folder = 'labels'
+    accum_iter = 8 #累積幾次batch才更新一次權重
 
     #####Dataset setting#####
     re_y, re_x = opt.resize.split(',')
-    Resize_set = torchvision.transforms.Resize((int(re_y), int(re_x)),antialias = True) #(y, x)
-    ColorJitter_set = transforms.ColorJitter(brightness=(0, 3), contrast=(0, 3), saturation=(0, 3), hue=(-0.1, 0.1))#亮度(brightness)、對比(contrast)、飽和度(saturation)和色調(hue)
-    ByteToFloat = torchvision.transforms.ConvertImageDtype(torch.float)
-    '''
-    train_augmentation = torchvision.transforms.Compose([Resize_set,
-                                                        ColorJitter_set,
-                                                        torchvision.transforms.ToTensor(),
-                                                        #torchvision.transforms.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
-                                                        ]) 
-    '''
-    train_augmentation = nn.Sequential(Resize_set,
-                                        ColorJitter_set,
-                                        ByteToFloat
-                                        )
+    ori_re_y, ori_re_x = opt.ori_resize.split(',')
+    Resize_set = T.Resize((int(re_y), int(re_x)),antialias = True) #(y, x)
+    ori_Resize_set = T.Resize((int(ori_re_y), int(ori_re_x)),antialias = True) #(y, x)
+    ColorJitter_set = T.ColorJitter(brightness=(0, 3), contrast=(0, 3), saturation=(0, 3), hue=(-0.1, 0.1))#亮度(brightness)、對比(contrast)、飽和度(saturation)和色調(hue)
+    RandomGray = T.RandomGrayscale(p=0.1,)
+    ByteToFloat = T.ConvertImageDtype(torch.float)
+    ToTensor = T.ToTensor()
+    Normalize = T.Normalize((0.5,0.5,0.5),(0.5,0.5,0.5))
+    
+    #trainugmentationngle_dis = torchvision.transforms.Compose([Resize_set]) 
+    #trainugmentation_original = torchvision.transforms.Compose([ori_Resize_set]) 
+   
+    train_transformngle_dis = nn.Sequential( Resize_set, ColorJitter_set, RandomGray, ByteToFloat)
+    train_transform_original = nn.Sequential( ori_Resize_set, ColorJitter_set, RandomGray, ByteToFloat)
+    valid_transformngle_dis = nn.Sequential( Resize_set, ByteToFloat)
+    valid_transform_original = nn.Sequential( ori_Resize_set, ByteToFloat)
     #####train dataloder#####    
     batch_size = opt.batch_size
-    train_data = MyDataset(root=train_root, device=device, image_folder=image_folder, label_folder=label_folder, transform=train_augmentation)
+    train_data = MyDataset(root=train_root, device=device, image_folder=image_folder, label_folder=label_folder,
+                transform=train_transformngle_dis, ori_transform=train_transform_original, folder_label=image_folder_label)
     train_loader = DataLoader(dataset=train_data, batch_size=batch_size, shuffle=False)
-    #####test dataloder##### 
-    valid_data = MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder)
+    #####valid dataloder##### 
+    valid_data = MyDataset(root=valid_root, device=device, image_folder=image_folder, label_folder=label_folder,
+                transform=valid_transformngle_dis, ori_transform=valid_transform_original, folder_label=image_folder_label)
     valid_loader = DataLoader(dataset=valid_data, batch_size=batch_size, shuffle=True)
    
     #####model setting#####
     
     #model = Net()   #自製model
-    model = models.resnet50(pretrained=True)
+    #model = models.resnet50(pretrained=True)
     #model= models.vgg16(pretrained=True) #會梯度爆炸
+    model = ResNet20()
     
     #*** 修改全連線層的輸出 ***#
     
     #適用:resnet
-    num_ftrs = model.fc.in_features#in_feature is the number of inputs for your linear layer
-    model.fc = nn.Linear(num_ftrs, 2)
+    #num_ftrs = model.fc.in_features#in_feature is the number of inputs for your linear layer
+    #model.fc = nn.Linear(num_ftrs, 2)
     '''
     #適用:vgg
     num_ftrs = model.classifier[6].in_features#in_feature is the number of inputs for your linear layer
     model.classifier[6] = nn.Linear(num_ftrs, 2)
     '''
     model = model.to(device)
-    print(model)
+    #print(model)
     print('GPU State:', device)
     #
     LR = opt.lr
     EPOCH_SET = opt.epochs
 
-    optimizer = torch.optim.SGD(model.parameters(),lr=LR)
+    optimizer = torch.optim.Adadelta(model.parameters(),lr=LR)
+    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.9)
     loss_func = nn.MSELoss()
     #loss_func = nn.BCELoss()
     
     #####start traing#####
     save_path = mkdir()
-    train(model, device, LR, EPOCH_SET, optimizer, loss_func, train_loader, batch_size, save_path)
+    train(model, device, LR, EPOCH_SET, optimizer,  lr_scheduler,
+            loss_func, train_loader, valid_loader, batch_size, save_path, accum_iter)
 
 def mkdir():
     first = 1
@@ -234,10 +246,12 @@ def mkdir():
         if not os.path.isdir(path):
             os.makedirs(os.path.join(path,'train','save'))
             os.makedirs(os.path.join(path,'valid','each_EOPCH'))
+            os.makedirs(os.path.join(path,'valid','loss100'))
             break
         first += 1
     return path
-            
+
+           
     
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -247,6 +261,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch-size', type=int, default=8, help='total batch size for all GPUs')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     parser.add_argument('--resize', type=str, default='640,640', help='transforms resize img [y, x]')
+    parser.add_argument('--ori_resize', type=str, default='640,640', help='transforms resize img [y, x]')
     opt = parser.parse_args()
     
     main()
